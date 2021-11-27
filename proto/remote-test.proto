@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package grpc.remotetest;
+
+service Remote {
+  // Register projects to be later used in tests
+  rpc RegisterProject(Project) returns (RegisterResponse);
+
+  // Unregister project server-side
+  rpc UnregisterProject(ProjectIdentifier) returns (RegisterResponse);
+
+  // Send complete code update to the remote server
+  rpc UpdateProject(ProjectUpdate) returns (UpdateResponse);
+
+  // Send code diff update to remote server
+  rpc IncrementProject(ProjectIncrement) returns (UpdateResponse);
+
+  // Requesting tests to be run by remote testing server
+  rpc RunTests(ProjectIdentifier) returns (TestResults);
+}
+
+// defines the project information for the testing server
+message Project {
+  string name = 1;
+  repeated string tests = 2;
+}
+
+// Contains only the project's name
+message ProjectIdentifier {
+  string name = 1;
+}
+
+// server response to project register requests
+message RegisterResponse {
+  bool success = 1;
+  // Contains error message if request was not successful, otherwise empty
+  optional string error = 2;
+}
+
+// Update content for remote server
+message ProjectUpdate {
+  string name = 1;
+  string hash = 2;
+  bytes blob = 3;
+}
+
+// Diff update content for remote server
+message ProjectIncrement {
+  string name = 1;
+  string prevhash = 2;
+  string newhash = 3;
+  bytes blob = 4;
+}
+
+// Server response after handling updates
+message UpdateResponse {
+  string project = 1;
+  string hash = 2;
+  bool success = 3;
+  // Contains error message if request was unsuccessful, otherwise empty
+  optional string error = 4;
+}
+
+// Test results for client
+message TestResults {
+  string ProjectIdentifier = 1;
+  string hash = 2;
+  string timestamp = 3;
+  repeated TestResult results = 4;
+}
+
+// Result of single test execution
+message TestResult {
+  string command = 1;
+  bytes stdout = 2;
+  bytes stderr = 3;
+  bool success = 4;
+}
