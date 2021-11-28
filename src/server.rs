@@ -108,8 +108,9 @@ impl Remote for RemoteServerContext {
     
     async fn increment_project(
         &self,
-        request: Request<ProjectIncrement>
+        _request: Request<ProjectIncrement>
     ) ->Result<Response<UpdateResponse>,Status> {
+        // TODO: Add incremental update procedure
         Err(Status::unimplemented("Not yet implemented!"))
     }
 
@@ -140,7 +141,7 @@ impl Remote for RemoteServerContext {
         // Return test results
         let (name, hash) = test_project.get_tuple();
         response!(TestResults {
-            project_identifier: name,
+            name,
             hash,
             timestamp,
             results,
