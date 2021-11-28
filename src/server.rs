@@ -183,10 +183,10 @@ static DEFAULT_ZIP_CACHE_DIR: &'static str = "/tmp/.remote-test_zip-cache.d";
 
 #[tokio::main]
 async fn main() {
-    let repo_dir = prepare_directory(option_env!("REPO_DIR").unwrap_or(DEFAULT_REPO_DIR))
+    let repo_dir = prepare_directory(std::env::var("REPO_DIR").unwrap_or(DEFAULT_REPO_DIR.to_string()).as_str())
         .await
         .expect("Could not prepare REPO_DIR");
-    let zip_cache_dir = prepare_directory(option_env!("ZIP_CACHE_DIR").unwrap_or(DEFAULT_ZIP_CACHE_DIR))
+    let zip_cache_dir = prepare_directory(std::env::var("ZIP_CACHE_DIR").unwrap_or(DEFAULT_ZIP_CACHE_DIR.to_string()).as_str())
         .await
         .expect("Could not prepare ZIP_CACHE_DIR");
 
