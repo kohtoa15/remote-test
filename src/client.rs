@@ -167,7 +167,7 @@ async fn print_result<Fut>(res: Fut) -> Result<(), Box<dyn Error>>
 
 #[tokio::main]
 async fn main() {
-    let config_file = option_env!("PROJECT_CONFIG").unwrap_or(".remotetest-config");
+    let config_file = std::env::var("PROJECT_CONFIG").unwrap_or(String::from(".rt-conf.json"));
     let conf = read_project_config(config_file).expect("Could not read project config file");
     let dest = std::env::args().next().expect("You need to provide the destination host as argument");
 
