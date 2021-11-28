@@ -172,7 +172,7 @@ async fn print_result<Fut>(res: Fut)
 async fn main() {
     let config_file = std::env::var("PROJECT_CONFIG").unwrap_or(String::from(".rt-conf.json"));
     let conf = read_project_config(config_file).expect("Could not read project config file");
-    let dest = std::env::args().next().expect("You need to provide the destination host as argument");
+    let dest = std::env::args().skip(1).next().expect("You need to provide the destination host as argument");
 
     println!("### remote-test client {} ###", env!("CARGO_PKG_VERSION"));
     use std::io::Write;
