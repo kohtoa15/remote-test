@@ -170,7 +170,7 @@ impl Remote for RemoteServerContext {
                         })
                     },
                     Err(e) => {
-                        debug!("could not apply update {} to project {}: {}", update.hash.as_str(), update.name.as_str(), e.to_string());
+                        debug!("could not apply update to project {}: {}", update.name.as_str(), e.to_string());
                         response!(UpdateResponse {
                             project: update.name,
                             hash: update.hash,

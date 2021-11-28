@@ -49,7 +49,11 @@ impl ZipFile {
     }
 
     pub fn compare_hash(&self, other: &String) -> bool {
-        self.hash.eq(other)
+        self.hash == *other
+    }
+
+    pub fn get_hash(&self) -> &str {
+        self.hash.as_str()
     }
 }
 
@@ -123,8 +127,7 @@ impl ZipBlob {
     pub async fn finish(mut self) -> Result<(String, Vec<u8>), Box<dyn Error>> {
         let blob = self.zip.finish()?.into_inner();
         // Calculate hash for data blob
-        let raw_hash = hash(&blob).await;
-        let hash = base64::encode_config(raw_hash, base64::STANDARD);
+        let hash = hash(&blob).await;
         Ok((hash, blob))
     }
 }

@@ -60,7 +60,7 @@ impl TestProject {
         }
         // Check if hash matches supplied Zipfile
         if !content.compare_hash(&hash) {
-            return Err(String::from("Hashsum mismatch"));
+            return Err(format!("Hashsum mismatch '{}'!='{}'", content.get_hash(), hash.as_str()));
         }
         // Try to extract content and apply update
         let dir = self.get_dir(base_dir);
