@@ -136,7 +136,7 @@ fn help() {
     println!("\thelp\tDisplays this text");
 }
 
-async fn print_result<Fut>(res: Fut) -> Result<(), Box<dyn Error>>
+async fn print_result<Fut>(res: Fut)
     where Fut: Future<Output = Result<String, Box<dyn Error>>>
 {
     let join = tokio::spawn(async {
@@ -157,12 +157,15 @@ async fn print_result<Fut>(res: Fut) -> Result<(), Box<dyn Error>>
     println!("");
     // Print result message
     match result {
-        Ok(s) => {
-            println!("{}", s);
-            Ok(())
+        Ok(s) => println!("{}", s),
+        Err(e) => {
+            println!("Encountered error when executing operation: {}", e.to_string());
+            if let Some(source) = e.source() {
+                println!("  Cause: {}", source);
+            }
         },
-        Err(e) => Err(e),
     }
+    println!("");
 }
 
 #[tokio::main]
@@ -176,24 +179,20 @@ async fn main() {
     let mut buf = String::new();
     loop {
         buf.clear();
-        print!("> ");
+        print!("{}_> ", &conf.name);
         std::io::stdout().flush().unwrap();
         let _n = std::io::stdin().read_line(&mut buf).unwrap();
 
         // Get input cmd
         match buf.as_str().trim_end_matches('\n') {
             "register" => print_result(register_project(dest.clone(), &conf))
-                .await
-                .unwrap(),
+                .await,
             "unregister" => print_result(unregister_project(dest.clone(), &conf))
-                .await
-                .unwrap(),
+                .await,
             "init" => print_result(update_project(dest.clone(), &conf))
-                .await
-                .unwrap(),
+                .await,
             "run" => print_result(run_tests(dest.clone(), &conf))
-                .await
-                .unwrap(),
+                .await,
             "help" => help(),
             "quit" => break,
             // Invalid command
