@@ -1,6 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr, path::{Path, PathBuf}, sync::Arc};
 
-use log::{debug, error, info, trace};
+use log::{debug, error, info};
 use remote_test::{pb::{Project, ProjectIdentifier, ProjectIncrement, ProjectUpdate, RegisterResponse, TestResult, TestResults, UpdateResponse, remote_server::{Remote, RemoteServer}}, project::TestProject, zip::ZipFile};
 use tokio::{fs::DirBuilder, sync::RwLock};
 use tonic::{Request, Response, Status, transport::Server};
@@ -35,18 +35,18 @@ impl Remote for RemoteServerContext {
     ) -> Result<Response<RegisterResponse>,Status> {
         let project: TestProject = request.into_inner().into();
         let name = project.get_name().to_string();
-        trace!("received RegisterRequest for project '{}'", name.as_str());
+        debug!("received RegisterRequest for project '{}'", name.as_str());
         let mut p = self.projects.write().await;
 
         // Insert new project if name does not yet exist
         if p.contains_key(&name) {
-            trace!("project {} already exists", name.as_str());
+            debug!("project {} already exists", name.as_str());
             response!(RegisterResponse {
                 success: false,
                 error: Some(format!("Project with name '{}' already exists!", name.as_str())),
             })
         } else {
-            debug!("successfully registered project {}", name.as_str());
+            info!("successfully registered project {}", name.as_str());
             let _ = p.insert(name, project);
             response!(RegisterResponse {
                 success: true,
@@ -60,29 +60,29 @@ impl Remote for RemoteServerContext {
         request: Request<ProjectIdentifier>
     ) ->Result<Response<RegisterResponse>,Status> {
         let project_name = request.into_inner().name;
-        trace!("received UnregisterRequest for project '{}'", project_name.as_str());
+        debug!("received UnregisterRequest for project '{}'", project_name.as_str());
         let mut p = self.projects.write().await;
 
 
         // Try to remove project, if it exists
         match p.remove(&project_name) {
             Some(project) => {
-                trace!("unregistering project {}", project_name.as_str());
+                debug!("unregistering project {}", project_name.as_str());
                 let mut error = None;
                 // Clear project repo
                 let dir = project.get_dir(&self.base_dir);
                 if dir.exists() && dir.is_dir() {
-                    trace!("removing project folder {:?}", dir.as_os_str());
+                    debug!("removing project folder {:?}", dir.as_os_str());
                     if let Err(e) = tokio::fs::remove_dir_all(dir.as_path()).await {
                         error!("could not clear directory {}", e.to_string());
                         error = Some(format!("Could not clear directory: {}", e));
                     };
                 }
-                debug!("successfully unregistered project {}", project_name.as_str());
+                info!("successfully unregistered project {}", project_name.as_str());
                 response!(RegisterResponse { success: true, error })
             },
             None => {
-                trace!("project {} does not exist", project_name.as_str());
+                debug!("project {} does not exist", project_name.as_str());
                 response!(RegisterResponse { success: false, error: Some(format!("Project '{}' does not exist", project_name.as_str())) })
             },
         }
@@ -93,12 +93,12 @@ impl Remote for RemoteServerContext {
         request: Request<ProjectUpdate>
     ) -> Result<Response<UpdateResponse>,Status> {
         let update = request.into_inner();
-        trace!("received ProjectUpdate for project {}", update.name.as_str());
+        debug!("received ProjectUpdate for project {}", update.name.as_str());
         // Check that project exists and currently has no hash
         let mut p = self.projects.write().await;
         match p.get_mut(&update.name) {
             Some(project) => {
-                trace!("preparing update for project {}", update.name.as_str());
+                debug!("preparing update for project {}", update.name.as_str());
                 // Store content to local file
                 let zipfile = ZipFile::from_contents(update.blob, &self.zip_cache_dir)
                     .await
@@ -114,7 +114,7 @@ impl Remote for RemoteServerContext {
                 match project.apply_update(zipfile, hash, &self.base_dir)
                 .await {
                     Ok(_) => {
-                        debug!("applied update {} to project {}", update.hash.as_str(), update.name.as_str());
+                        info!("applied update {} to project {}", update.hash.as_str(), update.name.as_str());
                         response!(UpdateResponse {
                             project: update.name, 
                             hash: update.hash,
@@ -123,7 +123,7 @@ impl Remote for RemoteServerContext {
                         })
                     },
                     Err(e) => {
-                        trace!("could not apply update {} to project {}: {}", update.hash.as_str(), update.name.as_str(), e.to_string());
+                        debug!("could not apply update {} to project {}: {}", update.hash.as_str(), update.name.as_str(), e.to_string());
                         response!(UpdateResponse {
                             project: update.name,
                             hash: update.hash,
@@ -135,7 +135,7 @@ impl Remote for RemoteServerContext {
             },
             // no project with this name
             None => {
-                trace!("project {} does not exist", update.name.as_str());
+                debug!("project {} does not exist", update.name.as_str());
                 response!(UpdateResponse {
                     error: Some(format!("Project '{}' does not exist", update.name.as_str())),
                     project: update.name,
@@ -160,7 +160,7 @@ impl Remote for RemoteServerContext {
         request: Request<ProjectIdentifier>
     ) -> Result<Response<TestResults>,Status> {
         let project = request.into_inner().name;
-        trace!("received RunTest request for project {}", project.as_str());
+        debug!("received RunTest request for project {}", project.as_str());
 
         // Generate pre-test timestamp
         let timestamp = chrono::Utc::now()
@@ -170,7 +170,7 @@ impl Remote for RemoteServerContext {
         let p = self.projects.read().await;
         let test_project = p.get(&project)
             .ok_or({
-                trace!("project {} does not exist", project.as_str());
+                debug!("project {} does not exist", project.as_str());
                 Status::invalid_argument(format!("Project '{}' does not exist!", project.as_str()))
             })?;
 
@@ -188,7 +188,7 @@ impl Remote for RemoteServerContext {
 
         // Return test results
         let (name, hash) = test_project.get_tuple();
-        debug!("Ran tests for project {}:{}", name.as_str(), hash.as_str());
+        info!("Ran tests for project {}:{}", name.as_str(), hash.as_str());
         response!(TestResults {
             name,
             hash,
@@ -256,7 +256,7 @@ async fn main() {
 
     // Prepare logger
     log::set_logger(&LOGGER).unwrap();
-    log::set_max_level(log::LevelFilter::Trace);
+    log::set_max_level(log::LevelFilter::Debug);
 
     let port = u16::from_str_radix(option_env!("PORT").unwrap_or("19000"), 10).expect("Could not parse port number");
     let host = SocketAddr::from(([127, 0, 0, 1], port));

@@ -1,6 +1,6 @@
 use std::{error::Error, path::PathBuf, process::Stdio};
 
-use log::{debug, trace};
+use log::{debug, info};
 use serde::{Serialize, Deserialize};
 use tokio::process::Command;
 
@@ -79,7 +79,7 @@ impl TestProject {
         let mut results = Vec::with_capacity(self.tests.len());
         for (i, test) in self.tests.iter().enumerate() {
             let dir = self.get_dir(base_dir);
-            debug!("{}: Running test {}/{}", self.name.as_str(), i, self.tests.len());
+            info!("{}: Running test {}/{}", self.name.as_str(), i, self.tests.len());
             let res = run_test(test, &dir).await?;
             results.push(res);
         }
@@ -121,7 +121,7 @@ async fn run_test(command: &Vec<String>, dir: &PathBuf) -> Result<TestOutput, Bo
         .stdin(Stdio::null())
         .output()
         .await?;
-    trace!("executed test '{}' -> {}",
+    debug!("executed test '{}' -> {}",
         shell_words::join(command),
         output.status.code().map(|x| x.to_string()).unwrap_or("None".to_string()),
     );
