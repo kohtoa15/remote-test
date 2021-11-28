@@ -45,6 +45,12 @@ impl TestProject {
         (name, hash)
     }
 
+    pub fn get_dir(&self, base_dir: &PathBuf) -> PathBuf {
+        let mut dir = base_dir.clone();
+        dir.push(self.name.as_str());
+        return dir;
+    }
+
     /// Use supplied data to apply update
     /// checks whether update can be applied before and returns Ok(false) if no
     /// update can be applied
@@ -58,8 +64,7 @@ impl TestProject {
             return Err(String::from("Hashsum mismatch"));
         }
         // Try to extract content and apply update
-        let mut dir = base_dir.clone();
-        dir.push(self.name.as_str());
+        let dir = self.get_dir(base_dir);
         let _ = content.extract_into(&dir)
             .await
             .map_err(|e| format!("Could not extract zip archive: {}", e))?;
@@ -72,10 +77,8 @@ impl TestProject {
     pub async fn execute_all_tests(&self, base_dir: &PathBuf) -> Result<Vec<TestOutput>, Box<dyn Error>> {
         let mut results = Vec::with_capacity(self.tests.len());
         for test in self.tests.iter() {
-            let res = run_test(self.name.as_str(),
-                test,
-                base_dir
-            ).await?;
+            let dir = self.get_dir(base_dir);
+            let res = run_test(test, &dir).await?;
             results.push(res);
         }
         Ok(results)
@@ -108,12 +111,7 @@ impl From<TestProject> for crate::pb::Project {
     }
 }
 
-async fn run_test(dirname: &str, command: &Vec<String>, base_dir: &PathBuf) -> Result<TestOutput, Box<dyn Error>> {
-    let dir = {
-        let mut d = base_dir.clone();
-        d.push(dirname);
-        d
-    };
+async fn run_test(command: &Vec<String>, dir: &PathBuf) -> Result<TestOutput, Box<dyn Error>> {
     let output = Command::new(&command[0])
         // Set working directory
         .current_dir(dir.as_path())
