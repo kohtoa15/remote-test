@@ -178,6 +178,32 @@ async fn prepare_directory(dir: &str) -> Result<PathBuf, String> {
     }
 }
 
+static LOGGER: SimpleLogger = SimpleLogger;
+
+struct SimpleLogger;
+
+impl log::Log for SimpleLogger {
+    fn enabled(&self, _: &log::Metadata) -> bool {
+        // let all logs pass
+        true
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            let timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+            println!(
+                "{} [{}]: {} - {}",
+                timestamp.as_str(),
+                record.level(),
+                record.target(),
+                record.args(),
+            );
+        }
+    }
+
+    fn flush(&self) {}
+}
+
 static DEFAULT_REPO_DIR: &'static str = "/var/remote-test";
 static DEFAULT_ZIP_CACHE_DIR: &'static str = "/tmp/.remote-test_zip-cache.d";
 
@@ -189,6 +215,10 @@ async fn main() {
     let zip_cache_dir = prepare_directory(std::env::var("ZIP_CACHE_DIR").unwrap_or(DEFAULT_ZIP_CACHE_DIR.to_string()).as_str())
         .await
         .expect("Could not prepare ZIP_CACHE_DIR");
+
+    // Prepare logger
+    log::set_logger(&LOGGER).unwrap();
+    log::set_max_level(log::LevelFilter::Debug);
 
     let port = u16::from_str_radix(option_env!("PORT").unwrap_or("19000"), 10).expect("Could not parse port number");
     let host = SocketAddr::from(([127, 0, 0, 1], port));

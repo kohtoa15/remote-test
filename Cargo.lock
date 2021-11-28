@@ -757,6 +757,7 @@ dependencies = [
  "base64",
  "chrono",
  "lazy_static",
+ "log",
  "prost",
  "regex",
  "serde",
