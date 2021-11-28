@@ -1,6 +1,6 @@
 use std::{error::Error, future::Future, path::Path, time::{Duration, Instant}};
 
-use remote_test::{pb::{Project, ProjectIdentifier, ProjectUpdate, remote_client::RemoteClient}, zip::ZipBlob};
+use remote_test::{client_errors::ClientError, pb::{Project, ProjectIdentifier, ProjectUpdate, remote_client::RemoteClient}, zip::ZipBlob};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
@@ -29,11 +29,13 @@ fn read_project_config(path: impl AsRef<Path>) -> Result<ProjectConfig, Box<dyn 
     Ok(conf)
 }
 
-async fn register_project(dest: String, conf: &ProjectConfig) -> Result<String, Box<dyn Error>> {
+async fn register_project(dest: String, conf: &ProjectConfig) -> Result<String, ClientError> {
     let mut client = RemoteClient::connect(dest)
-        .await?;
+        .await
+        .map_err(|e| ClientError::failed_connect(e))?;
     let res = client.register_project(Project::from(conf))
-        .await?
+        .await
+        .map_err(|e| ClientError::remote(e))?
         .into_inner();
     let msg;
     if res.success {
@@ -46,11 +48,13 @@ async fn register_project(dest: String, conf: &ProjectConfig) -> Result<String, 
     Ok(msg)
 }
 
-async fn unregister_project(dest: String, conf: &ProjectConfig) -> Result<String, Box<dyn Error>> {
+async fn unregister_project(dest: String, conf: &ProjectConfig) -> Result<String, ClientError> {
     let mut client = RemoteClient::connect(dest)
-        .await?;
+        .await
+        .map_err(|e| ClientError::failed_connect(e))?;
     let res = client.unregister_project(ProjectIdentifier::from(conf))
-        .await?
+        .await
+        .map_err(|e| ClientError::remote(e))?
         .into_inner();
     let msg;
     if res.success {
@@ -67,17 +71,22 @@ async fn unregister_project(dest: String, conf: &ProjectConfig) -> Result<String
     Ok(msg)
 }
 
-async fn update_project(dest: String, conf: &ProjectConfig) -> Result<String, Box<dyn Error>> {
+async fn update_project(dest: String, conf: &ProjectConfig) -> Result<String, ClientError> {
     let mut client = RemoteClient::connect(dest)
-        .await?;
+        .await
+        .map_err(|e| ClientError::failed_connect(e))?;
     let (hash, blob) = {
-        let mut zip = ZipBlob::new(conf.exclude.clone())?;
-        zip.add_dir(".").await?;
+        let mut zip = ZipBlob::new(conf.exclude.clone())
+            .map_err(|e| ClientError::local(e))?;
+        zip.add_dir(".").await
+            .map_err(|e| ClientError::local(e))?;
         zip.finish().await
-    }?;
+            .map_err(|e| ClientError::local(e))?
+    };
     let update = ProjectUpdate { name: conf.name.clone(), hash, blob};
     let res = client.update_project(update)
-        .await?
+        .await
+        .map_err(|e| ClientError::remote(e))?
         .into_inner();
     let msg;
     if res.success {
@@ -94,11 +103,13 @@ fn success_to_str(success: bool) -> &'static str {
     if success { "OK" } else { "Failed" }
 }
 
-async fn run_tests(dest: String, conf: &ProjectConfig) -> Result<String, Box<dyn Error>> {
+async fn run_tests(dest: String, conf: &ProjectConfig) -> Result<String, ClientError> {
     let mut client = RemoteClient::connect(dest)
-        .await?;
+        .await
+        .map_err(|e| ClientError::failed_connect(e))?;
     let res = client.run_tests(ProjectIdentifier::from(conf))
-        .await?
+        .await
+        .map_err(|e| ClientError::remote(e))?
         .into_inner();
 
     let all_successful = res.results.iter()
@@ -137,7 +148,7 @@ fn help() {
 }
 
 async fn print_result<Fut>(res: Fut)
-    where Fut: Future<Output = Result<String, Box<dyn Error>>>
+    where Fut: Future<Output = Result<String, ClientError>>
 {
     let join = tokio::spawn(async {
         use std::io::Write;
@@ -159,7 +170,7 @@ async fn print_result<Fut>(res: Fut)
     match result {
         Ok(s) => println!("{}", s),
         Err(e) => {
-            println!("Encountered error when executing operation: {}", e.to_string());
+            println!("Operation failed - {}", e.to_string());
             if let Some(source) = e.source() {
                 println!("  Cause: {}", source);
             }
