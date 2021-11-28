@@ -139,12 +139,12 @@ async fn run_tests(dest: String, conf: &ProjectConfig) -> Result<String, ClientE
 
 fn help() {
     println!("Commands:");
-    println!("\tregister\tRegister this project at our target server");
-    println!("\tunregister\tUnregister (remove) this project at our target server");
-    println!("\tinit\tUpdate inital project resources at our target server");
-    println!("\trun\tRun tests at the remote server");
-    println!("\tquit\tExit the program");
-    println!("\thelp\tDisplays this text");
+    println!("  register\tRegister this project at our target server");
+    println!("  unregister\tUnregister (remove) this project at our target server");
+    println!("  init\tUpdate inital project resources at our target server");
+    println!("  run\tRun tests at the remote server");
+    println!("  quit\tExit the program");
+    println!("  help\tDisplays this text");
 }
 
 async fn print_result<Fut>(res: Fut)
