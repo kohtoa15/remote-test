@@ -17,7 +17,7 @@ async fn flush_to_file(projects: Arc<RwLock<HashMap<String, TestProject>>>) -> R
     // Store only project values
     let data: Vec<&TestProject> = w.values().collect();
     // Write to tmp file
-    let file = tokio::fs::File::open("projecs.json.tmp").await?;
+    let file = tokio::fs::File::create("projects.json.tmp").await?;
     serde_json::to_writer_pretty(file.try_into_std().unwrap(), &data)?;
     // Swap real file with new one
     tokio::fs::rename("projects.json.tmp", "projects.json").await?;
@@ -58,7 +58,9 @@ impl RemoteServerContext {
                 if let Some(src) = e.source() {
                     s = format!(" caused by {}", src.to_string());
                 }
-                error!("Projects backup flush failed!\n{}{}", e, s);
+                error!("projects backup flush failed: {}{}", e, s);
+            } else {
+                info!("flushed projects to backup");
             }
         });
     }
