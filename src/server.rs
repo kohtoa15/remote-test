@@ -57,10 +57,21 @@ impl Remote for RemoteServerContext {
     ) ->Result<Response<RegisterResponse>,Status> {
         let project = request.into_inner().name;
         let mut p = self.projects.write().await;
-        
+
+
         // Try to remove project, if it exists
         match p.remove(&project) {
-            Some(_) => response!(RegisterResponse { success: true, error: None }),
+            Some(project) => {
+                let mut error = None;
+                // Clear project repo
+                let dir = project.get_dir(&self.base_dir);
+                if dir.exists() && dir.is_dir() {
+                    if let Err(e) = tokio::fs::remove_dir_all(dir.as_path()).await {
+                        error = Some(format!("Could not clear directory: {}", e));
+                    };
+                }
+                response!(RegisterResponse { success: true, error })
+            },
             None => response!(RegisterResponse { success: false, error: Some(format!("Project '{}' does not exist", project.as_str())) })
         }
     }
