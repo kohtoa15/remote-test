@@ -84,7 +84,7 @@ impl TestProject {
         let mut results = Vec::with_capacity(self.tests.len());
         for (i, test) in self.tests.iter().enumerate() {
             let dir = self.get_dir(base_dir);
-            info!("{}: Running test {}/{}", self.name.as_str(), i, self.tests.len());
+            info!("{}: Running test {}/{}", self.name.as_str(), i+1, self.tests.len());
             let res = run_test(test, &dir).await?;
             results.push(res);
         }
