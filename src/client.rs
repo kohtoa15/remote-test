@@ -181,7 +181,7 @@ async fn main() {
         let _n = std::io::stdin().read_line(&mut buf).unwrap();
 
         // Get input cmd
-        match buf.as_str() {
+        match buf.as_str().trim_end_matches('\n') {
             "register" => print_result(register_project(dest.clone(), &conf))
                 .await
                 .unwrap(),
