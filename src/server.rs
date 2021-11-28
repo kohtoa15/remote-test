@@ -1,6 +1,6 @@
-use std::{collections::HashMap, net::SocketAddr, path::{Path, PathBuf}, sync::Arc};
+use std::{collections::HashMap, error::Error, net::SocketAddr, path::{Path, PathBuf}, sync::Arc};
 
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use remote_test::{pb::{Project, ProjectIdentifier, ProjectIncrement, ProjectUpdate, RegisterResponse, TestResult, TestResults, UpdateResponse, remote_server::{Remote, RemoteServer}}, project::TestProject, zip::ZipFile};
 use tokio::{fs::DirBuilder, sync::RwLock};
 use tonic::{Request, Response, Status, transport::Server};
@@ -9,6 +9,19 @@ macro_rules! response {
     ($x:expr) => {
         Ok(tonic::Response::new($x))
     };
+}
+
+/// Writing current projects state to projects.json file
+async fn flush_to_file(projects: Arc<RwLock<HashMap<String, TestProject>>>) -> Result<(), Box<dyn Error>> {
+    let w = projects.read().await;
+    // Store only project values
+    let data: Vec<&TestProject> = w.values().collect();
+    // Write to tmp file
+    let file = tokio::fs::File::open("projecs.json.tmp").await?;
+    serde_json::to_writer_pretty(file.try_into_std().unwrap(), &data)?;
+    // Swap real file with new one
+    tokio::fs::rename("projects.json.tmp", "projects.json").await?;
+    Ok(())
 }
 
 pub struct RemoteServerContext {
@@ -25,6 +38,31 @@ impl RemoteServerContext {
             projects: Arc::new(RwLock::new(HashMap::new())),
         }
     }
+
+    pub async fn add_projects(&self, projects: Vec<TestProject>) {
+        let mut lock = self.projects.write().await;
+        for p in projects.into_iter() {
+            lock.insert(p.get_name().to_string(), p);
+        }
+    }
+
+    // Starts flush of projects to file, but does not wait for it to finish
+    fn flush_projects(&self) {
+        // Copy projects ref for new async task
+        let projects = self.projects.clone();
+        tokio::spawn(async {
+            let res = flush_to_file(projects).await;
+            // Log possible errors
+            if let Err(e) = res {
+                let mut s = String::default();
+                if let Some(src) = e.source() {
+                    s = format!(" caused by {}", src.to_string());
+                }
+                error!("Projects backup flush failed!\n{}{}", e, s);
+            }
+        });
+    }
+
 }
 
 #[tonic::async_trait]
@@ -48,6 +86,8 @@ impl Remote for RemoteServerContext {
         } else {
             info!("successfully registered project {}", name.as_str());
             let _ = p.insert(name, project);
+            // Flush after insert
+            self.flush_projects();
             response!(RegisterResponse {
                 success: true,
                 error: None,
@@ -61,11 +101,19 @@ impl Remote for RemoteServerContext {
     ) ->Result<Response<RegisterResponse>,Status> {
         let project_name = request.into_inner().name;
         debug!("received UnregisterRequest for project '{}'", project_name.as_str());
-        let mut p = self.projects.write().await;
 
+        let maybe_project = {
+            let mut p = self.projects.write().await;
+            // Try to remove project, if it exists
+            let res = p.remove(&project_name);
+            if res.is_some() {
+                // Flush after remove
+                self.flush_projects();
+            }
+            res
+        };
 
-        // Try to remove project, if it exists
-        match p.remove(&project_name) {
+        match maybe_project {
             Some(project) => {
                 debug!("unregistering project {}", project_name.as_str());
                 let mut error = None;
@@ -114,6 +162,8 @@ impl Remote for RemoteServerContext {
                 match project.apply_update(zipfile, hash, &self.base_dir)
                 .await {
                     Ok(_) => {
+                        // Flush after update apply
+                        self.flush_projects();
                         info!("applied update {} to project {}", update.hash.as_str(), update.name.as_str());
                         response!(UpdateResponse {
                             project: update.name, 
@@ -253,17 +303,31 @@ async fn main() {
     let zip_cache_dir = prepare_directory(std::env::var("ZIP_CACHE_DIR").unwrap_or(DEFAULT_ZIP_CACHE_DIR.to_string()).as_str())
         .await
         .expect("Could not prepare ZIP_CACHE_DIR");
+    let projects = std::fs::File::open("projects.json")
+        .ok()
+        .map(|f| {
+            let v: Vec<TestProject> = serde_json::from_reader(f).expect("Cannot read projects from projects.json");
+            v
+        });
+
+    let ctx = RemoteServerContext::new(repo_dir, zip_cache_dir);
+    if let Some(ps) = projects {
+        let n = ps.len();
+        ctx.add_projects(ps).await;
+        info!("Loaded {} projects from backup file", n);
+    } else {
+        warn!("Could not find existing projects config! - No projects were loaded")
+    }
 
     // Prepare logger
     log::set_logger(&LOGGER).unwrap();
     log::set_max_level(log::LevelFilter::Debug);
 
-    let port = u16::from_str_radix(option_env!("PORT").unwrap_or("19000"), 10).expect("Could not parse port number");
+    let port = u16::from_str_radix(std::env::var("PORT").unwrap_or("19000".to_string()).as_str(), 10).expect("Could not parse port number");
     let host = SocketAddr::from(([127, 0, 0, 1], port));
     info!("Starting server at {}", host);
-    let server = RemoteServerContext::new(repo_dir, zip_cache_dir);
     Server::builder()
-        .add_service(RemoteServer::new(server))
+        .add_service(RemoteServer::new(ctx))
         .serve(host)
         .await
         .unwrap();
