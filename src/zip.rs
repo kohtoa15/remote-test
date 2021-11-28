@@ -87,12 +87,18 @@ impl ZipBlob {
 
     pub async fn add_dir(&mut self, dir: impl AsRef<Path>) -> Result<(), Box<dyn Error>> {
         use std::io::Write;
-        let walker = WalkDir::new(dir);
+        println!("\n*** Compressing project directory");
+        let walker = WalkDir::new(dir).min_depth(1);
         for entry in walker {
             let dir_entry = entry?;
 
             // Filter out excluded paths
-            let path = dir_entry.path();
+            let path;
+            if dir_entry.path_is_symlink() {
+                path = std::fs::read_link(dir_entry.path())?;
+            } else {
+                path = dir_entry.path().to_path_buf();
+            };
             let path_str = path.to_string_lossy();
             let is_excluded = self.exclude.iter().any(|p| p.is_match(path_str.as_ref()));
             // Filter out paths matching excluded regex
@@ -101,10 +107,13 @@ impl ZipBlob {
                 continue;
             }
 
-            // Feed to zip writer
-            self.zip.start_file(path_str, self.options.clone())?;
-            let content = tokio::fs::read(path).await?;
-            self.zip.write(&content)?;
+            // Feed to zip writer if file
+            if dir_entry.file_type().is_file() {
+                println!("\t{}", path_str);
+                self.zip.start_file(path_str, self.options.clone())?;
+                let content = tokio::fs::read(path.as_path()).await?;
+                self.zip.write(&content)?;
+            }
         }
         Ok(())
     }
