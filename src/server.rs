@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, net::SocketAddr, path::{Path, PathBuf}, sync::Arc};
+use std::{collections::HashMap, error::Error, net::{IpAddr, SocketAddr}, path::{Path, PathBuf}, str::FromStr, sync::Arc};
 
 use log::{debug, error, info, warn};
 use remote_test::{pb::{Project, ProjectIdentifier, ProjectIncrement, ProjectUpdate, RegisterResponse, TestResult, TestResults, UpdateResponse, remote_server::{Remote, RemoteServer}}, project::TestProject, zip::ZipFile};
@@ -321,7 +321,12 @@ async fn main() {
     log::set_max_level(log::LevelFilter::Debug);
 
     let port = u16::from_str_radix(std::env::var("PORT").unwrap_or("19000".to_string()).as_str(), 10).expect("Could not parse port number");
-    let host = SocketAddr::from(([127, 0, 0, 1], port));
+    let host = if let Ok(host_env) = std::env::var("HOST") {
+        let ip = IpAddr::from_str(host_env.as_str()).expect("Could not parse specified host");
+        SocketAddr::from((ip, port))
+    } else {
+        SocketAddr::from(([0, 0, 0, 0], port))
+    };
     info!("Starting server at {}", host);
     Server::builder()
         .add_service(RemoteServer::new(ctx))
