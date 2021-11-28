@@ -156,12 +156,7 @@ impl Remote for RemoteServerContext {
                         error!("error occurred while trying to write blob to file: {}", e);
                         Status::aborted(format!("Error occurred while trying to write blob to file: {}", e))
                     })?;
-                let hash = base64::decode_config(&update.hash, base64::STANDARD)
-                    .map_err(|e| {
-                        error!("could not decode provided update hash: {}", e);
-                        Status::aborted(format!("Could not decode provided update hash: {}", e))
-                    })?;
-                match project.apply_update(zipfile, hash, &self.base_dir)
+                match project.apply_update(zipfile, update.hash.clone(), &self.base_dir)
                 .await {
                     Ok(_) => {
                         // Flush after update apply

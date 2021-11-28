@@ -15,11 +15,11 @@ pub mod hash {
         static ref HASHER: Arc<Mutex<sha2::Sha256>> = Arc::new(Mutex::new(sha2::Sha256::default()));
     }
 
-    pub async fn hash(data: impl AsRef<[u8]>) -> Vec<u8> {
+    pub async fn hash(data: impl AsRef<[u8]>) -> String {
         let mut hasher = HASHER.lock().await;
         // Reset hasher after use, trust it's always used this way
         hasher.update(data);
         let res = hasher.finalize_reset();
-        res.to_vec()
+        base64::encode_config(res.to_vec(), base64::STANDARD)
     }
 }

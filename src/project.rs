@@ -1,6 +1,6 @@
 use std::{error::Error, path::PathBuf, process::Stdio};
 
-use log::{debug, info, warn};
+use log::{debug, info};
 use serde::{Serialize, Deserialize};
 use tokio::process::Command;
 
@@ -29,7 +29,7 @@ impl From<TestOutput> for TestResult {
 pub struct TestProject {
     name: String,
     tests: Vec<Vec<String>>,
-    hash: Option<Vec<u8>>,
+    hash: Option<String>,
 }
 
 impl TestProject {
@@ -40,9 +40,7 @@ impl TestProject {
     /// Returns name/hash tuple of this project
     pub fn get_tuple(&self) -> (String, String) {
         let name = self.name.clone();
-        let bytes = self.hash.clone()
-            .unwrap_or_default();
-        let hash = base64::encode_config(bytes, base64::STANDARD);
+        let hash= self.hash.clone().unwrap_or_default();
         (name, hash)
     }
 
@@ -55,7 +53,7 @@ impl TestProject {
     /// Use supplied data to apply update
     /// checks whether update can be applied before and returns Ok(false) if no
     /// update can be applied
-    pub async fn apply_update(&mut self, content: ZipFile, hash: Vec<u8>, base_dir: &PathBuf) -> Result<(), String> {
+    pub async fn apply_update(&mut self, content: ZipFile, hash: String, base_dir: &PathBuf) -> Result<(), String> {
         if self.hash.is_some() {
             // Project is not empty, cannot apply update
             return Err(format!("Project '{}' can not apply update, as it is in an unsuitable state", self.name.as_str()));
@@ -79,7 +77,7 @@ impl TestProject {
         if self.hash.is_none() {
             // Project is still empty, cannot run tests
             info!("cannot run requested tests for {}, project is empty", self.name.as_str());
-            return Err(Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "project is empty")));
+            return Err(Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "project is not initialized")));
         }
         let mut results = Vec::with_capacity(self.tests.len());
         for (i, test) in self.tests.iter().enumerate() {

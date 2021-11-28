@@ -7,12 +7,12 @@ use zip::ZipWriter;
 use crate::hash::hash;
 
 pub struct ZipFile {
-    hash: Vec<u8>,
+    hash: String,
     path: PathBuf,
 }
 
-impl From<(Vec<u8>, PathBuf)> for ZipFile {
-    fn from(tuple: (Vec<u8>, PathBuf)) -> Self {
+impl From<(String, PathBuf)> for ZipFile {
+    fn from(tuple: (String, PathBuf)) -> Self {
         let (hash, path) = tuple;
         ZipFile { hash, path }
     }
@@ -48,8 +48,8 @@ impl ZipFile {
         Ok(())
     }
 
-    pub fn compare_hash(&self, other: &[u8]) -> bool {
-        self.hash.as_slice().eq(other)
+    pub fn compare_hash(&self, other: &String) -> bool {
+        self.hash.eq(other)
     }
 }
 
