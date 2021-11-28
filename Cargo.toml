@@ -1,0 +1,33 @@
+[package]
+name = "remote-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.13"
+chrono = "0.4"
+lazy_static = "1.4"
+log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"]}
+prost = "0.9"
+regex = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.9"
+shell-words = "1.0"
+tokio = { version = "1", features = ["full"] }
+tonic = "0.6"
+walkdir = "2"
+zip = "0.5"
+
+[build-dependencies]
+tonic-build = "0.6"
+
+# Server binary
+[[bin]]
+  name = "server"
+  path = "src/server.rs"
+
+# Client binary
+[[bin]]
+  name = "client"
+  path = "src/client.rs"
