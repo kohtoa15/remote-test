@@ -113,7 +113,7 @@ async fn run_tests(dest: String, conf: &ProjectConfig) -> Result<String, ClientE
         .into_inner();
 
     let all_successful = res.results.iter()
-        .any(|x| !x.success);
+        .all(|x| x.success);
     let mut lines: Vec<String> = Vec::new();
     lines.push(format!("Test results for {}:{}", res.name, res.hash));
     lines.push(format!(" started at {}", res.timestamp));
@@ -121,7 +121,7 @@ async fn run_tests(dest: String, conf: &ProjectConfig) -> Result<String, ClientE
         let n = i + 1;
         lines.push(format!("Test {} {} {}", 
             n,
-            "*".repeat(10),
+            "*".repeat(16),
             success_to_str(result.success)
         ));
         let stdout = String::from_utf8_lossy(&result.stdout);
@@ -129,8 +129,8 @@ async fn run_tests(dest: String, conf: &ProjectConfig) -> Result<String, ClientE
         lines.push(format!("\tstdout: \"{}\"", stdout));
         lines.push(format!("\tstderr: \"{}\"", stderr));
     }
-    lines.push(format!("{}", "*".repeat(20)));
-    lines.push(format!("\tTests successful {} {}",
+    lines.push(format!("{}", "*".repeat(32)));
+    lines.push(format!("  Tests successful {} {}",
         "*".repeat(5),
         success_to_str(all_successful)
     ));
