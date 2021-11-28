@@ -1,6 +1,6 @@
 use std::{error::Error, path::PathBuf, process::Stdio};
 
-use log::{debug, info};
+use log::{debug, info, warn};
 use serde::{Serialize, Deserialize};
 use tokio::process::Command;
 
@@ -76,6 +76,11 @@ impl TestProject {
     }
 
     pub async fn execute_all_tests(&self, base_dir: &PathBuf) -> Result<Vec<TestOutput>, Box<dyn Error>> {
+        if self.hash.is_none() {
+            // Project is still empty, cannot run tests
+            info!("cannot run requested tests for {}, project is empty", self.name.as_str());
+            return Err(Box::new(std::io::Error::new(std::io::ErrorKind::NotFound, "project is empty")));
+        }
         let mut results = Vec::with_capacity(self.tests.len());
         for (i, test) in self.tests.iter().enumerate() {
             let dir = self.get_dir(base_dir);
