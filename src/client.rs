@@ -132,6 +132,7 @@ fn help() {
     println!("\tunregister\tUnregister (remove) this project at our target server");
     println!("\tinit\tUpdate inital project resources at our target server");
     println!("\trun\tRun tests at the remote server");
+    println!("\tquit\tExit the program");
     println!("\thelp\tDisplays this text");
 }
 
@@ -194,6 +195,7 @@ async fn main() {
                 .await
                 .unwrap(),
             "help" => help(),
+            "quit" => break,
             // Invalid command
             _ => println!("Invalid command. Enter 'help' to get more information on the commands"),
         }
