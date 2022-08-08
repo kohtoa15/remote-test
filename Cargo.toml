@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = "*"
 base64 = "0.13"
 chrono = "0.4"
 lazy_static = "1.4"

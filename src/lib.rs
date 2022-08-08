@@ -1,3 +1,4 @@
+pub mod capsule;
 pub mod client_errors;
 pub mod project;
 pub mod zip;
